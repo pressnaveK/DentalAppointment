@@ -1,0 +1,66 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chat-appointment-ingress
+  namespace: chat-appointment
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "Access-Control-Allow-Origin: *";
+      more_set_headers "Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS";
+      more_set_headers "Access-Control-Allow-Headers: Content-Type, Authorization";
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  tls:
+  - hosts:
+    - api-pressnavek-appointment-app.gromosome.com
+    - admin-pressnavek-appointment-app.gromosome.com
+    - pressnavek-appointment-app.gromosome.com
+    secretName: cloudflare-ssl-cert
+  rules:
+  # API Host - All APIs (Bot Service + User Service)
+  - host: api-pressnavek-appointment-app.gromosome.com
+    http:
+      paths:
+      # Bot Service API - /bot/* routes
+      - path: /bot(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: bot-service
+            port:
+              number: 8000
+      # User Service API - all other routes
+      - path: /(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: user-service
+            port:
+              number: 3000
+  # Admin UI Host
+  - host: admin-pressnavek-appointment-app.gromosome.com
+    http:
+      paths:
+      - path: /(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: admin-ui
+            port:
+              number: 80
+  # Client UI Host  
+  - host: pressnavek-appointment-app.gromosome.com
+    http:
+      paths:
+      - path: /(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: client-ui
+            port:
+              number: 80

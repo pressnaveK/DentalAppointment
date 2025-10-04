@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chat-appointment
+  labels:
+    name: chat-appointment
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: chat-appointment
+data:
+  NODE_ENV: "production"
+  ENV: "production"
+  # Internal service URLs (for service-to-service communication)
+  API_BASE_URL: "http://user-service:3000"
+  BOT_API_URL: "http://bot-service:8000"
+  # External API URLs (for frontend applications)
+  EXTERNAL_API_HOST: "api-pressnavek-appointment-app.gromosome.com"
+  EXTERNAL_USER_API_URL: "https://api-pressnavek-appointment-app.gromosome.com"
+  EXTERNAL_BOT_API_URL: "https://api-pressnavek-appointment-app.gromosome.com/bot"
+  # Database and Cache
+  DATABASE_URL: "postgresql://chatuser:chatpass@postgres:5432/chatapp"
+  REDIS_URL: "redis://redis:6379"
+  LOG_LEVEL: "info"
+  MAX_FILE_SIZE: "10MB"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  namespace: chat-appointment
+type: Opaque
+stringData:
+  JWT_SECRET: "your-super-secret-jwt-key-change-in-production"
+  POSTGRES_USER: "chatuser"
+  POSTGRES_PASSWORD: "chatpass"
+  POSTGRES_DB: "chatapp"
+  OPENAI_API_KEY: "your-openai-api-key"
+  LANGCHAIN_API_KEY: "your-langchain-api-key"

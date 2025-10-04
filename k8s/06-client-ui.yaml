@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client-ui
+  namespace: chat-appointment
+  labels:
+    app: client-ui
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: client-ui
+  template:
+    metadata:
+      labels:
+        app: client-ui
+    spec:
+      containers:
+      - name: client-ui
+        image: localhost:5000/chat-appointment/client-ui:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        env:
+        - name: VITE_API_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: EXTERNAL_USER_API_URL
+        - name: VITE_BOT_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: EXTERNAL_BOT_API_URL
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: client-ui
+  namespace: chat-appointment
+  labels:
+    app: client-ui
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+  selector:
+    app: client-ui

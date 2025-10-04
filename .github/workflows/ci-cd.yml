@@ -1,0 +1,408 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      bot-service: ${{ steps.changes.outputs.bot-service }}
+      user-service: ${{ steps.changes.outputs.user-service }}
+      admin-ui: ${{ steps.changes.outputs.admin-ui }}
+      client-ui: ${{ steps.changes.outputs.client-ui }}
+      bazel-config: ${{ steps.changes.outputs.bazel-config }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            bot-service:
+              - 'api/bot_service/**'
+            user-service:
+              - 'api/user_service/**'
+            admin-ui:
+              - 'ui/admin_ui/**'
+            client-ui:
+              - 'ui/client_ui/**'
+            bazel-config:
+              - 'WORKSPACE'
+              - '.bazelrc'
+              - '**/BUILD'
+              - 'platforms/**'
+
+  setup-bazel:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.bazel-config == 'true' || needs.detect-changes.outputs.bot-service == 'true' || needs.detect-changes.outputs.user-service == 'true' || needs.detect-changes.outputs.admin-ui == 'true' || needs.detect-changes.outputs.client-ui == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Mount bazel cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/bazel
+          key: bazel-${{ runner.os }}-${{ hashFiles('**/BUILD', 'WORKSPACE', '.bazelrc') }}
+          restore-keys: |
+            bazel-${{ runner.os }}-
+      
+      - name: Install Bazel
+        uses: bazelbuild/setup-bazelisk@v2
+      
+      - name: Build changed targets
+        run: ./scripts/selective-build.sh build
+
+  lint-and-test:
+    runs-on: ubuntu-latest
+    needs: [detect-changes, setup-bazel]
+    if: needs.detect-changes.outputs.bot-service == 'true' || needs.detect-changes.outputs.user-service == 'true' || needs.detect-changes.outputs.admin-ui == 'true' || needs.detect-changes.outputs.client-ui == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Mount bazel cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/bazel
+          key: bazel-${{ runner.os }}-${{ hashFiles('**/BUILD', 'WORKSPACE', '.bazelrc') }}
+          restore-keys: |
+            bazel-${{ runner.os }}-
+      
+      - name: Install Bazel
+        uses: bazelbuild/setup-bazelisk@v2
+      
+      - name: Run linting
+        run: ./scripts/selective-build.sh lint
+      
+      - name: Run tests
+        run: ./scripts/selective-build.sh test
+
+  build-bot-service:
+    runs-on: ubuntu-latest
+    needs: [detect-changes, lint-and-test]
+    if: needs.detect-changes.outputs.bot-service == 'true' || needs.detect-changes.outputs.bazel-config == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build Bot Service locally
+        uses: docker/build-push-action@v4
+        with:
+          context: ./api/bot_service
+          file: ./api/bot_service/Dockerfile
+          push: false
+          tags: chat-appointment/bot-service:${{ github.sha }}
+          outputs: type=docker,dest=/tmp/bot-service.tar
+      
+      - name: Upload Bot Service image
+        uses: actions/upload-artifact@v3
+        with:
+          name: bot-service-image
+          path: /tmp/bot-service.tar
+
+  build-user-service:
+    runs-on: ubuntu-latest
+    needs: [detect-changes, lint-and-test]
+    if: needs.detect-changes.outputs.user-service == 'true' || needs.detect-changes.outputs.bazel-config == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build User Service locally
+        uses: docker/build-push-action@v4
+        with:
+          context: ./api/user_service
+          file: ./api/user_service/Dockerfile
+          push: false
+          tags: chat-appointment/user-service:${{ github.sha }}
+          outputs: type=docker,dest=/tmp/user-service.tar
+      
+      - name: Upload User Service image
+        uses: actions/upload-artifact@v3
+        with:
+          name: user-service-image
+          path: /tmp/user-service.tar
+
+  build-admin-ui:
+    runs-on: ubuntu-latest
+    needs: [detect-changes, lint-and-test]
+    if: needs.detect-changes.outputs.admin-ui == 'true' || needs.detect-changes.outputs.bazel-config == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build Admin UI locally
+        uses: docker/build-push-action@v4
+        with:
+          context: ./ui/admin_ui
+          file: ./ui/admin_ui/Dockerfile
+          push: false
+          tags: chat-appointment/admin-ui:${{ github.sha }}
+          outputs: type=docker,dest=/tmp/admin-ui.tar
+      
+      - name: Upload Admin UI image
+        uses: actions/upload-artifact@v3
+        with:
+          name: admin-ui-image
+          path: /tmp/admin-ui.tar
+
+  build-client-ui:
+    runs-on: ubuntu-latest
+    needs: [detect-changes, lint-and-test]
+    if: needs.detect-changes.outputs.client-ui == 'true' || needs.detect-changes.outputs.bazel-config == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build Client UI locally
+        uses: docker/build-push-action@v4
+        with:
+          context: ./ui/client_ui
+          file: ./ui/client_ui/Dockerfile
+          push: false
+          tags: chat-appointment/client-ui:${{ github.sha }}
+          outputs: type=docker,dest=/tmp/client-ui.tar
+      
+      - name: Upload Client UI image
+        uses: actions/upload-artifact@v3
+        with:
+          name: client-ui-image
+          path: /tmp/client-ui.tar
+
+  deploy-to-vps:
+    needs: [detect-changes, build-bot-service, build-user-service, build-admin-ui, build-client-ui]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Download Docker images
+        uses: actions/download-artifact@v3
+        with:
+          path: /tmp/docker-images/
+      
+      - name: Install sshpass
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass
+      
+      - name: Transfer Docker images to VPS
+        run: |
+          # Create remote directory
+          sshpass -p "${{ secrets.VPS_PASSWORD }}" ssh -o StrictHostKeyChecking=no pressnave@${{ secrets.VPS_HOST }} "mkdir -p /tmp/docker-images"
+          
+          # Transfer image files
+          if [ -f /tmp/docker-images/bot-service/bot-service.tar ]; then
+            sshpass -p "${{ secrets.VPS_PASSWORD }}" scp -o StrictHostKeyChecking=no /tmp/docker-images/bot-service/bot-service.tar pressnave@${{ secrets.VPS_HOST }}:/tmp/docker-images/
+          fi
+          
+          if [ -f /tmp/docker-images/user-service/user-service.tar ]; then
+            sshpass -p "${{ secrets.VPS_PASSWORD }}" scp -o StrictHostKeyChecking=no /tmp/docker-images/user-service/user-service.tar pressnave@${{ secrets.VPS_HOST }}:/tmp/docker-images/
+          fi
+          
+          if [ -f /tmp/docker-images/admin-ui/admin-ui.tar ]; then
+            sshpass -p "${{ secrets.VPS_PASSWORD }}" scp -o StrictHostKeyChecking=no /tmp/docker-images/admin-ui/admin-ui.tar pressnave@${{ secrets.VPS_HOST }}:/tmp/docker-images/
+          fi
+          
+          if [ -f /tmp/docker-images/client-ui/client-ui.tar ]; then
+            sshpass -p "${{ secrets.VPS_PASSWORD }}" scp -o StrictHostKeyChecking=no /tmp/docker-images/client-ui/client-ui.tar pressnave@${{ secrets.VPS_HOST }}:/tmp/docker-images/
+          fi
+      
+      - name: Connect to VPS and deploy
+        env:
+          CLOUDFLARE_CERT: ${{ secrets.CLOUDFLARE_CERT }}
+          CLOUDFLARE_KEY: ${{ secrets.CLOUDFLARE_KEY }}
+        run: |
+          sshpass -p "${{ secrets.VPS_PASSWORD }}" ssh -o StrictHostKeyChecking=no pressnave@${{ secrets.VPS_HOST }} << EOF
+            # Navigate to project directory (create if doesn't exist)
+            cd /home/pressnave/ChatAppointment || {
+              echo "Project directory not found. Cloning repository..."
+              git clone ${{ github.server_url }}/${{ github.repository }}.git ChatAppointment
+              cd ChatAppointment
+            }
+            
+            # Pull latest changes
+            echo "Pulling latest changes..."
+            git fetch origin
+            git reset --hard origin/main
+            
+            # Make scripts executable
+            chmod +x scripts/minikube-deploy.sh
+            chmod +x scripts/selective-build.sh
+            chmod +x scripts/setup-hosts.sh
+            
+            # Set up environment
+            export KUBECONFIG=/home/pressnave/.kube/config
+            
+            # Check if Minikube is running
+            if ! minikube status > /dev/null 2>&1; then
+              echo "Starting Minikube..."
+              minikube start --cpus=4 --memory=4096 --disk-size=20g
+            fi
+            
+            # Configure Docker to use Minikube's Docker daemon
+            eval $(minikube docker-env)
+            
+            # Load Docker images into Minikube
+            echo "Loading Docker images into Minikube..."
+            if [ -f /tmp/docker-images/bot-service.tar ]; then
+              docker load < /tmp/docker-images/bot-service.tar
+              docker tag chat-appointment/bot-service:${{ github.sha }} localhost:5000/chat-appointment/bot-service:latest
+            fi
+            
+            if [ -f /tmp/docker-images/user-service.tar ]; then
+              docker load < /tmp/docker-images/user-service.tar
+              docker tag chat-appointment/user-service:${{ github.sha }} localhost:5000/chat-appointment/user-service:latest
+            fi
+            
+            if [ -f /tmp/docker-images/admin-ui.tar ]; then
+              docker load < /tmp/docker-images/admin-ui.tar
+              docker tag chat-appointment/admin-ui:${{ github.sha }} localhost:5000/chat-appointment/admin-ui:latest
+            fi
+            
+            if [ -f /tmp/docker-images/client-ui.tar ]; then
+              docker load < /tmp/docker-images/client-ui.tar
+              docker tag chat-appointment/client-ui:${{ github.sha }} localhost:5000/chat-appointment/client-ui:latest
+            fi
+            
+            # Ensure registry is running
+            kubectl port-forward --namespace kube-system service/registry 5000:80 &
+            sleep 5
+            
+            # Push images to local registry
+            echo "Pushing images to local registry..."
+            if docker images | grep -q "localhost:5000/chat-appointment/bot-service"; then
+              docker push localhost:5000/chat-appointment/bot-service:latest
+            fi
+            
+            if docker images | grep -q "localhost:5000/chat-appointment/user-service"; then
+              docker push localhost:5000/chat-appointment/user-service:latest
+            fi
+            
+            if docker images | grep -q "localhost:5000/chat-appointment/admin-ui"; then
+              docker push localhost:5000/chat-appointment/admin-ui:latest
+            fi
+            
+            if docker images | grep -q "localhost:5000/chat-appointment/client-ui"; then
+              docker push localhost:5000/chat-appointment/client-ui:latest
+            fi
+            
+            # Create SSL secret if certificates are provided via environment variables
+            if [ ! -z "${CLOUDFLARE_CERT:-}" ] && [ ! -z "${CLOUDFLARE_KEY:-}" ]; then
+              echo "Creating SSL secret from Cloudflare certificate..."
+              echo "$CLOUDFLARE_CERT" | base64 -d > /tmp/cert.pem
+              echo "$CLOUDFLARE_KEY" | base64 -d > /tmp/key.pem
+              kubectl delete secret cloudflare-ssl-cert -n chat-appointment --ignore-not-found=true
+              kubectl create secret tls cloudflare-ssl-cert --cert=/tmp/cert.pem --key=/tmp/key.pem -n chat-appointment
+              rm -f /tmp/cert.pem /tmp/key.pem
+              echo "✅ SSL secret created successfully"
+            else
+              echo "ℹ️  No SSL certificates provided - using default configuration"
+            fi
+            
+            # Deploy to Kubernetes
+            echo "Deploying to Kubernetes..."
+            kubectl apply -f k8s/
+            
+            # Wait for deployments to be ready
+            echo "Waiting for deployments..."
+            kubectl wait --for=condition=available deployment --all -n chat-appointment --timeout=600s
+            
+            # Clean up temporary files
+            rm -rf /tmp/docker-images/
+            
+            # Verify SSL configuration
+            if kubectl get secret cloudflare-ssl-cert -n chat-appointment > /dev/null 2>&1; then
+              echo "✅ SSL certificate configured"
+            else
+              echo "⚠️  SSL certificate not found - HTTPS may not work"
+            fi
+            
+            echo "Deployment completed successfully!"
+          EOF
+      
+      - name: Run health checks on VPS
+        run: |
+          ssh -o StrictHostKeyChecking=no pressnave@62.169.25.53 << 'EOF'
+            export KUBECONFIG=/home/pressnave/.kube/config
+            
+            echo "Running health checks..."
+            
+            # Get Minikube IP
+            MINIKUBE_IP=$(minikube ip)
+            echo "Minikube IP: $MINIKUBE_IP"
+            
+            # Test health endpoints
+            echo "Testing User Service health..."
+            kubectl exec deployment/user-service -n chat-appointment -- curl -f http://localhost:3000/health || {
+              echo "User service health check failed"
+              exit 1
+            }
+            
+            echo "Testing Bot Service health..."
+            kubectl exec deployment/bot-service -n chat-appointment -- curl -f http://localhost:8000/health || {
+              echo "Bot service health check failed"
+              exit 1
+            }
+            
+            echo "All health checks passed!"
+            
+            # Show deployment status
+            echo "=== Deployment Status ==="
+            kubectl get all -n chat-appointment
+            
+            echo "=== Access URLs ==="
+            echo "Client UI: http://pressnavek-appointment-app.gromosome.com"
+            echo "Admin UI: http://admin-pressnavek-appointment-app.gromosome.com"
+            echo "API: http://api-pressnavek-appointment-app.gromosome.com"
+          EOF
+      
+      - name: Setup domain routing (if needed)
+        run: |
+          ssh -o StrictHostKeyChecking=no pressnave@62.169.25.53 << 'EOF'
+            # Check if hosts entries exist for domain routing
+            if ! grep -q "pressnavek-appointment-app.gromosome.com" /etc/hosts 2>/dev/null; then
+              echo "Setting up local domain routing..."
+              ./scripts/setup-hosts.sh
+            else
+              echo "Domain routing already configured"
+            fi
+          EOF
+      
+      - name: Cleanup on failure
+        if: failure()
+        run: |
+          ssh -o StrictHostKeyChecking=no pressnave@62.169.25.53 << 'EOF'
+            export KUBECONFIG=/home/pressnave/.kube/config
+            
+            echo "Deployment failed. Getting debug information..."
+            
+            echo "=== Pod Status ==="
+            kubectl get pods -n chat-appointment
+            
+            echo "=== Pod Logs ==="
+            kubectl logs -l app=bot-service -n chat-appointment --tail=50 || true
+            kubectl logs -l app=user-service -n chat-appointment --tail=50 || true
+            kubectl logs -l app=admin-ui -n chat-appointment --tail=50 || true
+            kubectl logs -l app=client-ui -n chat-appointment --tail=50 || true
+            
+            echo "=== Events ==="
+            kubectl get events -n chat-appointment --sort-by='.lastTimestamp' || true
+          EOF

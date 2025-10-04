@@ -1,0 +1,8 @@
+# Add this to your .gitignore to prevent committing SSL certificates
+k8s/08-ssl-secret.yaml
+*.pem
+*.key
+*.crt
+certificate.*
+private.*
+docs

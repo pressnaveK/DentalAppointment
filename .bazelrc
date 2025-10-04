@@ -1,0 +1,38 @@
+build --enable_platform_specific_config
+build --incompatible_enable_cc_toolchain_resolution
+build --action_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+
+# Build settings
+build --show_timestamps
+build --watchfs
+build --symlink_prefix=bazel-
+
+# Test settings
+test --test_output=errors
+test --test_summary=detailed
+
+# Remote build settings (optional)
+# build --remote_executor=grpc://your-remote-executor:8980
+# build --remote_cache=grpc://your-remote-cache:8980
+
+# Docker settings
+build --experimental_docker_verbose
+build --experimental_enable_docker_sandbox
+
+# Platform settings
+build:linux --platforms=//platforms:linux_x86_64
+build:macos --platforms=//platforms:macos_x86_64
+
+# Debug settings
+build:debug --compilation_mode=dbg
+build:debug --strip=never
+
+# Release settings
+build:release --compilation_mode=opt
+build:release --strip=always
+
+# Coverage settings
+coverage --combined_report=lcov
+coverage --coverage_report_generator=@bazel_tools//tools/test:coverage_report_generator
+
+try-import %workspace%/.bazelrc.local
