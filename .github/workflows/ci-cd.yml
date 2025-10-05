@@ -49,31 +49,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Mount bazel cache
-        id: bazel-cache
-        continue-on-error: true
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/bazel
-          key: bazel-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: |
-            bazel-${{ runner.os }}-${{ github.run_id }}-
-            bazel-${{ runner.os }}-
-      
-      - name: Setup Bazel cache directory
+      - name: Skip Bazel setup
         run: |
-          mkdir -p ~/.cache/bazel
-          chmod 755 ~/.cache/bazel
-          echo "Cache status: ${{ steps.bazel-cache.outcome }}"
-      
-      - name: Install Bazel
-        uses: bazelbuild/setup-bazelisk@v2
-      
-      - name: Build changed targets
-        run: |
-          # Skip Bazel build for now due to cache issues
-          echo "Bazel build temporarily disabled due to cache service issues"
-          echo "Building individual services via Docker instead"
+          echo "Bazel setup skipped - using Docker builds instead"
+          echo "This avoids GitHub Actions cache service issues"
 
   lint-and-test:
     runs-on: ubuntu-latest
@@ -82,37 +61,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Mount bazel cache
-        id: bazel-cache-test
-        continue-on-error: true
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/bazel
-          key: bazel-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: |
-            bazel-${{ runner.os }}-${{ github.run_id }}-
-            bazel-${{ runner.os }}-
-      
-      - name: Setup Bazel cache directory
+      - name: Skip Bazel lint and test
         run: |
-          mkdir -p ~/.cache/bazel
-          chmod 755 ~/.cache/bazel
-          echo "Cache status: ${{ steps.bazel-cache-test.outcome }}"
-      
-      - name: Install Bazel
-        uses: bazelbuild/setup-bazelisk@v2
-      
-      - name: Run linting
-        run: |
-          # Skip Bazel lint for now due to cache issues
-          echo "Bazel linting temporarily disabled due to cache service issues"
-          echo "Individual service linting handled in Docker builds"
-      
-      - name: Run tests
-        run: |
-          # Skip Bazel tests for now due to cache issues
-          echo "Bazel tests temporarily disabled due to cache service issues"
-          echo "Individual service tests handled in Docker builds"
+          echo "Bazel linting and testing skipped - using Docker builds instead"
+          echo "Individual service tests and linting handled in Docker build process"
 
   build-bot-service:
     runs-on: ubuntu-latest
