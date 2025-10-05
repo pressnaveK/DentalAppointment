@@ -18,7 +18,7 @@ spec:
       containers:
       - name: bot-service
         image: chat-appointment/bot-service:latest
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8000
         env:

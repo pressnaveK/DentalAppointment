@@ -18,7 +18,7 @@ spec:
       containers:
       - name: user-service
         image: chat-appointment/user-service:latest
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3000
         env:

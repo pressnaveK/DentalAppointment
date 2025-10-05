@@ -18,7 +18,7 @@ spec:
       containers:
       - name: client-ui
         image: chat-appointment/client-ui:latest
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80
         env:

@@ -76,20 +76,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
-      - name: Build Bot Service locally
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+      
+      - name: Build and push Bot Service
         uses: docker/build-push-action@v4
         with:
           context: ./api/bot_service
           file: ./api/bot_service/Dockerfile
-          push: false
-          tags: chat-appointment/bot-service:${{ github.sha }}
-          outputs: type=docker,dest=/tmp/bot-service.tar
-      
-      - name: Upload Bot Service image
-        uses: actions/upload-artifact@v4
-        with:
-          name: bot-service
-          path: /tmp/bot-service.tar
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-bot-service:latest
+            ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-bot-service:${{ github.sha }}
 
   build-user-service:
     runs-on: ubuntu-latest
@@ -101,20 +102,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
-      - name: Build User Service locally
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+      
+      - name: Build and push User Service
         uses: docker/build-push-action@v4
         with:
           context: ./api/user_service
           file: ./api/user_service/Dockerfile
-          push: false
-          tags: chat-appointment/user-service:${{ github.sha }}
-          outputs: type=docker,dest=/tmp/user-service.tar
-      
-      - name: Upload User Service image
-        uses: actions/upload-artifact@v4
-        with:
-          name: user-service
-          path: /tmp/user-service.tar
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-user-service:latest
+            ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-user-service:${{ github.sha }}
 
   build-admin-ui:
     runs-on: ubuntu-latest
@@ -126,20 +128,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
-      - name: Build Admin UI locally
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+      
+      - name: Build and push Admin UI
         uses: docker/build-push-action@v4
         with:
           context: ./ui/admin_ui
           file: ./ui/admin_ui/Dockerfile
-          push: false
-          tags: chat-appointment/admin-ui:${{ github.sha }}
-          outputs: type=docker,dest=/tmp/admin-ui.tar
-      
-      - name: Upload Admin UI image
-        uses: actions/upload-artifact@v4
-        with:
-          name: admin-ui
-          path: /tmp/admin-ui.tar
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-admin-ui:latest
+            ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-admin-ui:${{ github.sha }}
 
   build-client-ui:
     runs-on: ubuntu-latest
@@ -151,20 +154,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
-      - name: Build Client UI locally
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+      
+      - name: Build and push Client UI
         uses: docker/build-push-action@v4
         with:
           context: ./ui/client_ui
           file: ./ui/client_ui/Dockerfile
-          push: false
-          tags: chat-appointment/client-ui:${{ github.sha }}
-          outputs: type=docker,dest=/tmp/client-ui.tar
-      
-      - name: Upload Client UI image
-        uses: actions/upload-artifact@v4
-        with:
-          name: client-ui
-          path: /tmp/client-ui.tar
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-client-ui:latest
+            ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-client-ui:${{ github.sha }}
 
   deploy-to-vps:
     needs: [detect-changes, build-bot-service, build-user-service, build-admin-ui, build-client-ui]
@@ -172,57 +176,36 @@ jobs:
     if: github.ref == 'refs/heads/main'
     
     steps:
-      - name: Download Docker images
-        uses: actions/download-artifact@v4
-        with:
-          path: /tmp/docker-images/
-      
       - name: Install sshpass
         run: |
           sudo apt-get update
           sudo apt-get install -y sshpass
       
-      - name: Transfer Docker images to VPS
-        run: |
-          # Create remote directory
-          sshpass -p "${{ secrets.VPS_PASSWORD }}" ssh -o StrictHostKeyChecking=no pressnave@${{ secrets.VPS_HOST }} "mkdir -p /tmp/docker-images"
-          
-          # Transfer image files
-          if [ -f /tmp/docker-images/bot-service/bot-service.tar ]; then
-            sshpass -p "${{ secrets.VPS_PASSWORD }}" scp -o StrictHostKeyChecking=no /tmp/docker-images/bot-service/bot-service.tar pressnave@${{ secrets.VPS_HOST }}:/tmp/docker-images/
-          fi
-          
-          if [ -f /tmp/docker-images/user-service/user-service.tar ]; then
-            sshpass -p "${{ secrets.VPS_PASSWORD }}" scp -o StrictHostKeyChecking=no /tmp/docker-images/user-service/user-service.tar pressnave@${{ secrets.VPS_HOST }}:/tmp/docker-images/
-          fi
-          
-          if [ -f /tmp/docker-images/admin-ui/admin-ui.tar ]; then
-            sshpass -p "${{ secrets.VPS_PASSWORD }}" scp -o StrictHostKeyChecking=no /tmp/docker-images/admin-ui/admin-ui.tar pressnave@${{ secrets.VPS_HOST }}:/tmp/docker-images/
-          fi
-          
-          if [ -f /tmp/docker-images/client-ui/client-ui.tar ]; then
-            sshpass -p "${{ secrets.VPS_PASSWORD }}" scp -o StrictHostKeyChecking=no /tmp/docker-images/client-ui/client-ui.tar pressnave@${{ secrets.VPS_HOST }}:/tmp/docker-images/
-          fi
-      
       - name: Connect to VPS and deploy
         run: |
           sshpass -p "${{ secrets.VPS_PASSWORD }}" ssh -o StrictHostKeyChecking=no pressnave@${{ secrets.VPS_HOST }} << EOF
-            # Navigate to project directory (create if doesn't exist)
-            cd /home/pressnave/ChatAppointment || {
-              echo "Project directory not found. Cloning repository..."
-              git clone ${{ github.server_url }}/${{ github.repository }}.git ChatAppointment
-              cd ChatAppointment
-            }
+            # Set up sparse checkout directory
+            DEPLOY_DIR="/home/pressnave/ChatAppointment-Deploy"
             
-            # Pull latest changes
-            echo "Pulling latest changes..."
-            git fetch origin
-            git reset --hard origin/main
+            # Remove existing directory and create fresh sparse checkout
+            rm -rf \$DEPLOY_DIR
+            mkdir -p \$DEPLOY_DIR
+            cd \$DEPLOY_DIR
+            
+            # Initialize git and configure sparse checkout
+            git init
+            git remote add origin ${{ github.server_url }}/${{ github.repository }}.git
+            git config core.sparseCheckout true
+            
+            # Configure sparse checkout to only include k8s and scripts
+            echo "k8s/*" > .git/info/sparse-checkout
+            echo "scripts/*" >> .git/info/sparse-checkout
+            
+            # Pull only the required files
+            git pull origin main
             
             # Make scripts executable
-            chmod +x scripts/minikube-deploy.sh
-            chmod +x scripts/selective-build.sh
-            chmod +x scripts/setup-hosts.sh
+            chmod +x scripts/*.sh
             
             # Set up environment
             export KUBECONFIG=/home/pressnave/.kube/config
@@ -233,33 +216,25 @@ jobs:
               minikube start --cpus=4 --memory=4096 --disk-size=20g
             fi
             
-            # Configure Docker to use Minikube's Docker daemon
-            eval $(minikube docker-env)
+            # Login to Docker Hub and pull images
+            echo "Logging into Docker Hub..."
+            echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
             
-            # Load Docker images directly into Minikube's Docker daemon
-            echo "Loading Docker images into Minikube Docker daemon..."
-            if [ -f /tmp/docker-images/bot-service.tar ]; then
-              docker load < /tmp/docker-images/bot-service.tar
-              docker tag chat-appointment/bot-service:${{ github.sha }} chat-appointment/bot-service:latest
-            fi
+            # Pull Docker images from Docker Hub
+            echo "Pulling Docker images from Docker Hub..."
+            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-bot-service:latest
+            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-user-service:latest  
+            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-admin-ui:latest
+            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-client-ui:latest
             
-            if [ -f /tmp/docker-images/user-service.tar ]; then
-              docker load < /tmp/docker-images/user-service.tar
-              docker tag chat-appointment/user-service:${{ github.sha }} chat-appointment/user-service:latest
-            fi
+            # Tag images for Kubernetes deployment (local names)
+            docker tag ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-bot-service:latest chat-appointment/bot-service:latest
+            docker tag ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-user-service:latest chat-appointment/user-service:latest
+            docker tag ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-admin-ui:latest chat-appointment/admin-ui:latest
+            docker tag ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-client-ui:latest chat-appointment/client-ui:latest
             
-            if [ -f /tmp/docker-images/admin-ui.tar ]; then
-              docker load < /tmp/docker-images/admin-ui.tar
-              docker tag chat-appointment/admin-ui:${{ github.sha }} chat-appointment/admin-ui:latest
-            fi
-            
-            if [ -f /tmp/docker-images/client-ui.tar ]; then
-              docker load < /tmp/docker-images/client-ui.tar
-              docker tag chat-appointment/client-ui:${{ github.sha }} chat-appointment/client-ui:latest
-            fi
-            
-            # Verify images are loaded
-            echo "Verifying loaded images:"
+            # Verify images are available
+            echo "Verifying Docker images:"
             docker images | grep chat-appointment
             
             # Deploy to Kubernetes
@@ -270,15 +245,15 @@ jobs:
             echo "Waiting for deployments..."
             kubectl wait --for=condition=available deployment --all -n chat-appointment --timeout=600s
             
-            # Clean up temporary files
-            rm -rf /tmp/docker-images/
-            
             # Verify SSL configuration
             if kubectl get secret cloudflare-ssl-cert -n chat-appointment > /dev/null 2>&1; then
               echo "SSL certificate found - HTTPS enabled"
             else
               echo "SSL certificate not found - using HTTP"
             fi
+            
+            # Logout from Docker Hub
+            docker logout
             
             echo "Deployment completed successfully!"
           EOF
