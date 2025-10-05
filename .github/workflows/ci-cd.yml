@@ -236,49 +236,31 @@ jobs:
             # Configure Docker to use Minikube's Docker daemon
             eval $(minikube docker-env)
             
-            # Load Docker images into Minikube
-            echo "Loading Docker images into Minikube..."
+            # Load Docker images directly into Minikube's Docker daemon
+            echo "Loading Docker images into Minikube Docker daemon..."
             if [ -f /tmp/docker-images/bot-service.tar ]; then
               docker load < /tmp/docker-images/bot-service.tar
-              docker tag chat-appointment/bot-service:${{ github.sha }} localhost:5000/chat-appointment/bot-service:latest
+              docker tag chat-appointment/bot-service:${{ github.sha }} chat-appointment/bot-service:latest
             fi
             
             if [ -f /tmp/docker-images/user-service.tar ]; then
               docker load < /tmp/docker-images/user-service.tar
-              docker tag chat-appointment/user-service:${{ github.sha }} localhost:5000/chat-appointment/user-service:latest
+              docker tag chat-appointment/user-service:${{ github.sha }} chat-appointment/user-service:latest
             fi
             
             if [ -f /tmp/docker-images/admin-ui.tar ]; then
               docker load < /tmp/docker-images/admin-ui.tar
-              docker tag chat-appointment/admin-ui:${{ github.sha }} localhost:5000/chat-appointment/admin-ui:latest
+              docker tag chat-appointment/admin-ui:${{ github.sha }} chat-appointment/admin-ui:latest
             fi
             
             if [ -f /tmp/docker-images/client-ui.tar ]; then
               docker load < /tmp/docker-images/client-ui.tar
-              docker tag chat-appointment/client-ui:${{ github.sha }} localhost:5000/chat-appointment/client-ui:latest
+              docker tag chat-appointment/client-ui:${{ github.sha }} chat-appointment/client-ui:latest
             fi
             
-            # Ensure registry is running
-            kubectl port-forward --namespace kube-system service/registry 5000:80 &
-            sleep 5
-            
-            # Push images to local registry
-            echo "Pushing images to local registry..."
-            if docker images | grep -q "localhost:5000/chat-appointment/bot-service"; then
-              docker push localhost:5000/chat-appointment/bot-service:latest
-            fi
-            
-            if docker images | grep -q "localhost:5000/chat-appointment/user-service"; then
-              docker push localhost:5000/chat-appointment/user-service:latest
-            fi
-            
-            if docker images | grep -q "localhost:5000/chat-appointment/admin-ui"; then
-              docker push localhost:5000/chat-appointment/admin-ui:latest
-            fi
-            
-            if docker images | grep -q "localhost:5000/chat-appointment/client-ui"; then
-              docker push localhost:5000/chat-appointment/client-ui:latest
-            fi
+            # Verify images are loaded
+            echo "Verifying loaded images:"
+            docker images | grep chat-appointment
             
             # Deploy to Kubernetes
             echo "Deploying to Kubernetes..."

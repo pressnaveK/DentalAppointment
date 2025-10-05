@@ -60,56 +60,36 @@ start_minikube() {
     # Enable required addons
     print_status "Enabling Minikube addons..."
     minikube addons enable ingress
-    minikube addons enable registry
     minikube addons enable dashboard
     minikube addons enable metrics-server
     
     print_success "Minikube started successfully"
 }
 
-# Setup local registry
-setup_registry() {
-    print_status "Setting up local registry..."
-    
-    # Port forward registry (run in background)
-    kubectl port-forward --namespace kube-system service/registry 5000:80 &
-    REGISTRY_PID=$!
-    echo $REGISTRY_PID > /tmp/registry-port-forward.pid
-    
-    # Wait for port forward to be ready
-    sleep 5
-    
-    print_success "Registry is available at localhost:5000"
-}
-
-# Build and push images to minikube registry
-build_and_push_images() {
-    print_status "Building and pushing Docker images..."
+# Build images directly in Minikube's Docker daemon
+build_images() {
+    print_status "Building Docker images directly in Minikube..."
     
     # Configure docker to use minikube's docker daemon
     eval $(minikube docker-env)
     
     # Build images with minikube's docker
     print_status "Building bot-service image..."
-    docker build -t localhost:5000/chat-appointment/bot-service:latest ./api/bot_service/
+    docker build -t chat-appointment/bot-service:latest ./api/bot_service/
     
     print_status "Building user-service image..."
-    docker build -t localhost:5000/chat-appointment/user-service:latest ./api/user_service/
+    docker build -t chat-appointment/user-service:latest ./api/user_service/
     
     print_status "Building admin-ui image..."
-    docker build -t localhost:5000/chat-appointment/admin-ui:latest ./ui/admin_ui/
+    docker build -t chat-appointment/admin-ui:latest ./ui/admin_ui/
     
     print_status "Building client-ui image..."
-    docker build -t localhost:5000/chat-appointment/client-ui:latest ./ui/client_ui/
+    docker build -t chat-appointment/client-ui:latest ./ui/client_ui/
     
-    # Push images to local registry
-    print_status "Pushing images to local registry..."
-    docker push localhost:5000/chat-appointment/bot-service:latest
-    docker push localhost:5000/chat-appointment/user-service:latest
-    docker push localhost:5000/chat-appointment/admin-ui:latest
-    docker push localhost:5000/chat-appointment/client-ui:latest
+    print_status "Verifying images..."
+    docker images | grep chat-appointment
     
-    print_success "All images built and pushed successfully"
+    print_success "All images built successfully"
 }
 
 # Deploy to Kubernetes
@@ -176,8 +156,8 @@ get_access_urls() {
     echo "Kubernetes Dashboard:"
     echo "  minikube dashboard"
     echo ""
-    echo "Registry:"
-    echo "  localhost:5000"
+    echo "Docker Environment:"
+    echo "  Images built directly in Minikube's Docker daemon"
     echo ""
     echo "Useful commands:"
     echo "  kubectl get pods -n chat-appointment"
@@ -200,12 +180,7 @@ get_access_urls() {
 # Cleanup function
 cleanup() {
     print_status "Cleaning up..."
-    
-    # Kill registry port-forward if exists
-    if [ -f /tmp/registry-port-forward.pid ]; then
-        kill $(cat /tmp/registry-port-forward.pid) 2>/dev/null || true
-        rm /tmp/registry-port-forward.pid
-    fi
+    # No cleanup needed for direct Docker builds
 }
 
 # Main deployment function
@@ -214,8 +189,7 @@ deploy() {
     
     check_minikube
     start_minikube
-    setup_registry
-    build_and_push_images
+    build_images
     deploy_to_kubernetes
     get_access_urls
     
@@ -236,32 +210,28 @@ selective_deploy() {
     if echo "$changed_files" | grep -q "^api/bot_service/"; then
         services_to_update+=("bot-service")
         print_status "Bot service changes detected - rebuilding..."
-        docker build -t localhost:5000/chat-appointment/bot-service:latest ./api/bot_service/
-        docker push localhost:5000/chat-appointment/bot-service:latest
+        docker build -t chat-appointment/bot-service:latest ./api/bot_service/
         kubectl rollout restart deployment/bot-service -n chat-appointment
     fi
     
     if echo "$changed_files" | grep -q "^api/user_service/"; then
         services_to_update+=("user-service")
         print_status "User service changes detected - rebuilding..."
-        docker build -t localhost:5000/chat-appointment/user-service:latest ./api/user_service/
-        docker push localhost:5000/chat-appointment/user-service:latest
+        docker build -t chat-appointment/user-service:latest ./api/user_service/
         kubectl rollout restart deployment/user-service -n chat-appointment
     fi
     
     if echo "$changed_files" | grep -q "^ui/admin_ui/"; then
         services_to_update+=("admin-ui")
         print_status "Admin UI changes detected - rebuilding..."
-        docker build -t localhost:5000/chat-appointment/admin-ui:latest ./ui/admin_ui/
-        docker push localhost:5000/chat-appointment/admin-ui:latest
+        docker build -t chat-appointment/admin-ui:latest ./ui/admin_ui/
         kubectl rollout restart deployment/admin-ui -n chat-appointment
     fi
     
     if echo "$changed_files" | grep -q "^ui/client_ui/"; then
         services_to_update+=("client-ui")
         print_status "Client UI changes detected - rebuilding..."
-        docker build -t localhost:5000/chat-appointment/client-ui:latest ./ui/client_ui/
-        docker push localhost:5000/chat-appointment/client-ui:latest
+        docker build -t chat-appointment/client-ui:latest ./ui/client_ui/
         kubectl rollout restart deployment/client-ui -n chat-appointment
     fi
     

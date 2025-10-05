@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
       - name: user-service
-        image: localhost:5000/chat-appointment/user-service:latest
-        imagePullPolicy: Always
+        image: chat-appointment/user-service:latest
+        imagePullPolicy: Never
         ports:
         - containerPort: 3000
         env:

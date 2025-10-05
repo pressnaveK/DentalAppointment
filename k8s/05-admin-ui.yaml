@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
       - name: admin-ui
-        image: localhost:5000/chat-appointment/admin-ui:latest
-        imagePullPolicy: Always
+        image: chat-appointment/admin-ui:latest
+        imagePullPolicy: Never
         ports:
         - containerPort: 80
         env:
