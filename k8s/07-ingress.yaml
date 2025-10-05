@@ -1,8 +1,8 @@
-# Bot Service Ingress with path rewriting
+# Unified Ingress with path rewriting for all routes
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: bot-service-ingress  
+  name: chat-appointment-ingress
   namespace: chat-appointment
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$1
@@ -18,12 +18,15 @@ spec:
   tls:
   - hosts:
     - api-pressnavek-appointment-app.gromosome.com
+    - admin-pressnavek-appointment-app.gromosome.com
+    - pressnavek-appointment-app.gromosome.com
     secretName: cloudflare-ssl-cert
   rules:
+  # API Host - All APIs with path rewriting
   - host: api-pressnavek-appointment-app.gromosome.com
     http:
       paths:
-      # Bot Service API - /bot/* routes with rewrite
+      # Bot Service API - /bot/* routes with rewrite (strip /bot prefix)
       - path: /bot/(.*)
         pathType: ImplementationSpecific
         backend:
@@ -31,57 +34,31 @@ spec:
             name: bot-service
             port:
               number: 8000
----
-# Main Application Ingress
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: chat-appointment-ingress
-  namespace: chat-appointment
-  annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/enable-cors: "true"
-    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
-    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
-    nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type, Authorization"
-spec:
-  ingressClassName: nginx
-  tls:
-  - hosts:
-    - api-pressnavek-appointment-app.gromosome.com
-    - admin-pressnavek-appointment-app.gromosome.com
-    - pressnavek-appointment-app.gromosome.com
-    secretName: cloudflare-ssl-cert
-  rules:
-  # API Host - User Service (default for all non-bot routes)
-  - host: api-pressnavek-appointment-app.gromosome.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
+      # User Service API - all other routes with rewrite
+      - path: /(.*)
+        pathType: ImplementationSpecific
         backend:
           service:
             name: user-service
             port:
               number: 3000
-  # Admin UI Host
+  # Admin UI Host - with path rewriting
   - host: admin-pressnavek-appointment-app.gromosome.com
     http:
       paths:
-      - path: /
-        pathType: Prefix
+      - path: /(.*)
+        pathType: ImplementationSpecific
         backend:
           service:
             name: admin-ui
             port:
               number: 80
-  # Client UI Host  
+  # Client UI Host - with path rewriting
   - host: pressnavek-appointment-app.gromosome.com
     http:
       paths:
-      - path: /
-        pathType: Prefix
+      - path: /(.*)
+        pathType: ImplementationSpecific
         backend:
           service:
             name: client-ui
