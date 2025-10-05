@@ -18,16 +18,16 @@ NAMESPACE="chat-appointment"
 
 # Check if files exist
 if [ ! -f "$CERT_FILE" ]; then
-    echo "❌ Certificate file not found: $CERT_FILE"
+    echo "Certificate file not found: $CERT_FILE"
     exit 1
 fi
 
 if [ ! -f "$KEY_FILE" ]; then
-    echo "❌ Private key file not found: $KEY_FILE"
+    echo "Private key file not found: $KEY_FILE"
     exit 1
 fi
 
-echo "🔐 Creating SSL secret from Cloudflare certificate..."
+echo "Creating SSL secret from Cloudflare certificate..."
 
 # Delete existing secret if it exists
 kubectl delete secret $SECRET_NAME -n $NAMESPACE --ignore-not-found=true
@@ -38,12 +38,12 @@ kubectl create secret tls $SECRET_NAME \
     --key="$KEY_FILE" \
     -n $NAMESPACE
 
-echo "✅ SSL secret '$SECRET_NAME' created successfully in namespace '$NAMESPACE'"
+echo "SSL secret '$SECRET_NAME' created successfully in namespace '$NAMESPACE'"
 
 # Verify the secret
-echo "📋 Secret details:"
+echo "Secret details:"
 kubectl describe secret $SECRET_NAME -n $NAMESPACE
 
 # Check certificate expiration
-echo "📅 Certificate information:"
+echo "Certificate information:"
 openssl x509 -in "$CERT_FILE" -text -noout | grep -E "(Subject:|Issuer:|Not Before:|Not After:)"

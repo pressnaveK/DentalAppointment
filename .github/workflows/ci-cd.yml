@@ -333,9 +333,9 @@ jobs:
             
             # Verify SSL configuration
             if kubectl get secret cloudflare-ssl-cert -n chat-appointment > /dev/null 2>&1; then
-              echo "✅ SSL certificate found - HTTPS enabled"
+              echo "SSL certificate found - HTTPS enabled"
             else
-              echo "ℹ️  SSL certificate not found - using HTTP"
+              echo "SSL certificate not found - using HTTP"
             fi
             
             echo "Deployment completed successfully!"

@@ -5,44 +5,44 @@
 
 set -e
 
-echo "🚀 Setting up VPS for Chat Appointment deployment..."
+echo "Setting up VPS for Chat Appointment deployment..."
 
 # Check if running as root
 if [ "$EUID" -eq 0 ]; then 
-    echo "❌ Please do not run this script as root"
-    echo "   Run as the deployment user (pressnave)"
+    echo "Please do not run this script as root"
+    echo "Run as the deployment user (pressnave)"
     exit 1
 fi
 
 # Update system
-echo "📦 Updating system packages..."
+echo "Updating system packages..."
 sudo apt update && sudo apt upgrade -y
 
 # Install required packages
-echo "📦 Installing required packages..."
+echo "Installing required packages..."
 sudo apt install -y curl wget apt-transport-https ca-certificates gnupg lsb-release
 
 # Install Docker
-echo "🐳 Installing Docker..."
+echo "Installing Docker..."
 if ! command -v docker &> /dev/null; then
     curl -fsSL https://get.docker.com -o get-docker.sh
     sudo sh get-docker.sh
     sudo usermod -aG docker $USER
     rm get-docker.sh
-    echo "✅ Docker installed successfully"
+    echo "Docker installed successfully"
 else
-    echo "✅ Docker already installed"
+    echo "Docker already installed"
 fi
 
 # Install kubectl
-echo "☸️  Installing kubectl..."
+echo "Installing kubectl..."
 if ! command -v kubectl &> /dev/null; then
     curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
     chmod +x kubectl
     sudo mv kubectl /usr/local/bin/
-    echo "✅ kubectl installed successfully"
+    echo "kubectl installed successfully"
 else
-    echo "✅ kubectl already installed"
+    echo "kubectl already installed"
 fi
 
 # Install Minikube
@@ -51,18 +51,18 @@ if ! command -v minikube &> /dev/null; then
     curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
     chmod +x minikube
     sudo mv minikube /usr/local/bin/
-    echo "✅ Minikube installed successfully"
+    echo "Minikube installed successfully"
 else
-    echo "✅ Minikube already installed"
+    echo "Minikube already installed"
 fi
 
 # Start Minikube
-echo "🚀 Starting Minikube..."
+echo "Starting Minikube..."
 if ! minikube status > /dev/null 2>&1; then
     minikube start --cpus=4 --memory=4096 --disk-size=20g --driver=docker
-    echo "✅ Minikube started successfully"
+    echo "Minikube started successfully"
 else
-    echo "✅ Minikube already running"
+    echo "Minikube already running"
 fi
 
 # Enable required addons
@@ -76,18 +76,18 @@ echo "🔧 Configuring Docker environment..."
 eval $(minikube docker-env)
 
 # Create project directory
-echo "📁 Creating project directory..."
+echo "Creating project directory..."
 mkdir -p /home/pressnave/ChatAppointment
 
 # Ensure SSH password authentication is enabled
-echo "🔐 Configuring SSH for password authentication..."
+echo "Configuring SSH for password authentication..."
 sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
 sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
 sudo systemctl restart sshd
-echo "✅ SSH password authentication enabled"
+echo "SSH password authentication enabled"
 
 # Configure host entries for local development
-echo "🌐 Configuring host entries..."
+echo "Configuring host entries..."
 MINIKUBE_IP=$(minikube ip)
 echo "Minikube IP: $MINIKUBE_IP"
 
@@ -118,22 +118,22 @@ EOF
 chmod +x ~/update-hosts.sh
 
 # Configure firewall (UFW)
-echo "🔥 Configuring firewall..."
+echo "Configuring firewall..."
 if command -v ufw &> /dev/null; then
     sudo ufw allow ssh
     sudo ufw allow 80/tcp
     sudo ufw allow 443/tcp
     sudo ufw allow 8080/tcp  # Minikube dashboard
     sudo ufw --force enable
-    echo "✅ Firewall configured"
+    echo "Firewall configured"
 fi
 
 # Install additional tools
-echo "🛠️  Installing additional tools..."
+echo "Installing additional tools..."
 sudo apt install -y git htop tree jq
 
 # Create system service for Minikube auto-start
-echo "⚙️  Creating Minikube auto-start service..."
+echo "Creating Minikube auto-start service..."
 sudo tee /etc/systemd/system/minikube.service << EOF
 [Unit]
 Description=Minikube
@@ -157,7 +157,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable minikube
 
 # Create backup script
-echo "💾 Creating backup script..."
+echo "Creating backup script..."
 cat > ~/backup-deployment.sh << 'EOF'
 #!/bin/bash
 BACKUP_DIR="/home/pressnave/backups"
@@ -184,7 +184,7 @@ EOF
 chmod +x ~/backup-deployment.sh
 
 # Create monitoring script
-echo "📊 Creating monitoring script..."
+echo "Creating monitoring script..."
 cat > ~/monitor-deployment.sh << 'EOF'
 #!/bin/bash
 
@@ -192,38 +192,38 @@ echo "=== Chat Appointment Deployment Status ==="
 echo ""
 
 # Minikube status
-echo "🚢 Minikube Status:"
+echo "Minikube Status:"
 minikube status
 echo ""
 
 # Kubernetes nodes
-echo "☸️  Kubernetes Nodes:"
+echo "Kubernetes Nodes:"
 kubectl get nodes
 echo ""
 
 # Pods status
-echo "🚀 Pods Status:"
+echo "Pods Status:"
 kubectl get pods -n chat-appointment
 echo ""
 
 # Services status
-echo "🌐 Services Status:"
+echo "Services Status:"
 kubectl get services -n chat-appointment
 echo ""
 
 # Ingress status
-echo "🔗 Ingress Status:"
+echo "Ingress Status:"
 kubectl get ingress -n chat-appointment
 echo ""
 
 # Resource usage
-echo "📊 Resource Usage:"
+echo "Resource Usage:"
 kubectl top nodes
 kubectl top pods -n chat-appointment
 echo ""
 
 # Recent events
-echo "📝 Recent Events:"
+echo "Recent Events:"
 kubectl get events -n chat-appointment --sort-by=.metadata.creationTimestamp | tail -10
 EOF
 
@@ -231,38 +231,38 @@ chmod +x ~/monitor-deployment.sh
 
 # Print summary
 echo ""
-echo "🎉 VPS setup completed successfully!"
+echo "VPS setup completed successfully!"
 echo ""
-echo "📋 Summary of installed components:"
-echo "   ✅ Docker $(docker --version | cut -d' ' -f3)"
-echo "   ✅ kubectl $(kubectl version --client --short | cut -d' ' -f3)"
-echo "   ✅ Minikube $(minikube version | grep version | cut -d' ' -f3)"
-echo "   ✅ Minikube IP: $(minikube ip)"
+echo "Summary of installed components:"
+echo "   Docker $(docker --version | cut -d' ' -f3)"
+echo "   kubectl $(kubectl version --client --short | cut -d' ' -f3)"
+echo "   Minikube $(minikube version | grep version | cut -d' ' -f3)"
+echo "   Minikube IP: $(minikube ip)"
 echo ""
-echo "🔧 Available scripts:"
-echo "   📊 ~/monitor-deployment.sh - Monitor deployment status"
-echo "   💾 ~/backup-deployment.sh - Backup deployment"
-echo "   🌐 ~/update-hosts.sh - Update host entries"
+echo "Available scripts:"
+echo "   ~/monitor-deployment.sh - Monitor deployment status"
+echo "   ~/backup-deployment.sh - Backup deployment"
+echo "   ~/update-hosts.sh - Update host entries"
 echo ""
-echo "🚨 Important next steps:"
+echo "Important next steps:"
 echo "   1. Set a strong password for the 'pressnave' user (if not already done)"
 echo "   2. Configure GitHub secrets (VPS_PASSWORD)"
 echo "   3. Test SSH connection with password authentication"
 echo "   4. Run your first deployment"
 echo ""
-echo "🔍 To monitor the deployment:"
+echo "To monitor the deployment:"
 echo "   ./monitor-deployment.sh"
 echo ""
-echo "📚 Documentation available in:"
+echo "Documentation available in:"
 echo "   - docs/deployment-guide.md"
 echo "   - docs/github-secrets-setup.md"
 echo ""
 
 # Final checks
-echo "🔍 Running final checks..."
-docker info > /dev/null 2>&1 && echo "   ✅ Docker is running"
-kubectl cluster-info > /dev/null 2>&1 && echo "   ✅ Kubernetes is accessible"
-minikube status > /dev/null 2>&1 && echo "   ✅ Minikube is running"
+echo "Running final checks..."
+docker info > /dev/null 2>&1 && echo "   Docker is running"
+kubectl cluster-info > /dev/null 2>&1 && echo "   Kubernetes is accessible"
+minikube status > /dev/null 2>&1 && echo "   Minikube is running"
 
 echo ""
-echo "🚀 VPS is ready for deployment!"
+echo "VPS is ready for deployment!"
