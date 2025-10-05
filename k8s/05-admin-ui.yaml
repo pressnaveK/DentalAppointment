@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
       - name: admin-ui
-        image: chat-appointment/admin-ui:latest
-        imagePullPolicy: IfNotPresent
+        image: pressnavek/chat-appointment-admin-ui:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 80
         env:

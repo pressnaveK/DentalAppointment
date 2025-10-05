@@ -59,45 +59,11 @@ if [ ! -d "k8s" ]; then
     exit 1
 fi
 
-# Login to Docker Hub (interactive)
-print_status "Logging into Docker Hub..."
-print_warning "You will be prompted for your Docker Hub password"
-docker login -u "$DOCKER_HUB_USERNAME"
-
-if [ $? -ne 0 ]; then
-    print_error "Failed to login to Docker Hub"
-    exit 1
-fi
-
-# Pull images from Docker Hub
-print_status "Pulling Docker images from Docker Hub..."
-
-images=(
-    "chat-appointment-bot-service"
-    "chat-appointment-user-service"
-    "chat-appointment-admin-ui"
-    "chat-appointment-client-ui"
-)
-
-for image in "${images[@]}"; do
-    print_status "Pulling $DOCKER_HUB_USERNAME/$image:latest..."
-    docker pull "$DOCKER_HUB_USERNAME/$image:latest"
-    
-    if [ $? -eq 0 ]; then
-        # Tag for Kubernetes (local name)
-        local_name=$(echo $image | sed 's/chat-appointment-/chat-appointment\//')
-        docker tag "$DOCKER_HUB_USERNAME/$image:latest" "$local_name:latest"
-        print_success "Successfully pulled and tagged $image"
-    else
-        print_error "Failed to pull $image"
-        print_warning "Make sure the image exists: https://hub.docker.com/r/$DOCKER_HUB_USERNAME/$image"
-        exit 1
-    fi
-done
-
-# Verify images are available
-print_status "Verifying Docker images..."
-docker images | grep chat-appointment
+# Images will be pulled directly by Kubernetes from Docker Hub
+print_status "Using direct Docker Hub images - no local Docker operations needed"
+print_status "Kubernetes will pull images directly from Docker Hub: $DOCKER_HUB_USERNAME/chat-appointment-*"
+print_status "With imagePullPolicy: Always, fresh images will be pulled on every restart"
+print_success "Docker operations simplified - Kubernetes handles image pulling"
 
 # Create namespace if it doesn't exist
 if ! kubectl get namespace $NAMESPACE > /dev/null 2>&1; then
@@ -123,6 +89,25 @@ kubectl apply -f k8s/03-bot-service.yaml
 kubectl apply -f k8s/04-user-service.yaml
 kubectl apply -f k8s/05-admin-ui.yaml
 kubectl apply -f k8s/06-client-ui.yaml
+
+# Show current running images before restart
+print_status "Current running images before restart:"
+kubectl get pods -n $NAMESPACE -o custom-columns="POD:.metadata.name,IMAGE:.spec.containers[0].image" 2>/dev/null || echo "No pods running yet"
+
+# Force restart deployments to pull fresh images
+print_status "Force restarting deployments to pull latest images..."
+kubectl rollout restart deployment/bot-service -n $NAMESPACE
+kubectl rollout restart deployment/user-service -n $NAMESPACE
+kubectl rollout restart deployment/admin-ui -n $NAMESPACE
+kubectl rollout restart deployment/client-ui -n $NAMESPACE
+
+print_status "Waiting for rollout restart to complete..."
+kubectl rollout status deployment/bot-service -n $NAMESPACE --timeout=300s
+kubectl rollout status deployment/user-service -n $NAMESPACE --timeout=300s
+kubectl rollout status deployment/admin-ui -n $NAMESPACE --timeout=300s
+kubectl rollout status deployment/client-ui -n $NAMESPACE --timeout=300s
+
+print_success "All deployments restarted with fresh images from Docker Hub"
 
 # Deploy ingress
 kubectl apply -f k8s/07-ingress.yaml
@@ -154,6 +139,9 @@ print_status "Final Deployment Status:"
 echo ""
 kubectl get pods -n $NAMESPACE
 echo ""
+print_status "Current images after restart:"
+kubectl get pods -n $NAMESPACE -o custom-columns="POD:.metadata.name,IMAGE:.spec.containers[0].image,STATUS:.status.phase"
+echo ""
 kubectl get services -n $NAMESPACE  
 echo ""
 kubectl get ingress -n $NAMESPACE
@@ -183,9 +171,6 @@ echo "  curl http://$MINIKUBE_IP/bot/health"
 echo ""
 echo "Add to /etc/hosts for local testing:"
 echo "$MINIKUBE_IP pressnavek-appointment-app.gromosome.com admin-pressnavek-appointment-app.gromosome.com api-pressnavek-appointment-app.gromosome.com"
-
-# Logout from Docker Hub
-docker logout
 
 print_success "Docker Hub deployment completed successfully!"
 print_status "Your application is now running on Minikube with images from Docker Hub"

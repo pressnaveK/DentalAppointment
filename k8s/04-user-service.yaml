@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
       - name: user-service
-        image: chat-appointment/user-service:latest
-        imagePullPolicy: IfNotPresent
+        image: pressnavek/chat-appointment-user-service:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 3000
         env:

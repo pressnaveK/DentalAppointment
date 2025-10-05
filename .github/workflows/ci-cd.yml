@@ -216,26 +216,9 @@ jobs:
               minikube start --cpus=4 --memory=4096 --disk-size=20g
             fi
             
-            # Login to Docker Hub and pull images
-            echo "Logging into Docker Hub..."
-            echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
-            
-            # Pull Docker images from Docker Hub
-            echo "Pulling Docker images from Docker Hub..."
-            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-bot-service:latest
-            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-user-service:latest  
-            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-admin-ui:latest
-            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-client-ui:latest
-            
-            # Tag images for Kubernetes deployment (local names)
-            docker tag ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-bot-service:latest chat-appointment/bot-service:latest
-            docker tag ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-user-service:latest chat-appointment/user-service:latest
-            docker tag ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-admin-ui:latest chat-appointment/admin-ui:latest
-            docker tag ${{ secrets.DOCKER_HUB_USERNAME }}/chat-appointment-client-ui:latest chat-appointment/client-ui:latest
-            
-            # Verify images are available
-            echo "Verifying Docker images:"
-            docker images | grep chat-appointment
+            # Kubernetes will pull images directly from Docker Hub
+            echo "Images will be pulled directly from Docker Hub by Kubernetes"
+            echo "Using Docker Hub images: pressnavek/chat-appointment-*"
             
             # Deploy to Kubernetes
             echo "Deploying to Kubernetes..."

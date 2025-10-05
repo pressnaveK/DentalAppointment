@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
       - name: bot-service
-        image: chat-appointment/bot-service:latest
-        imagePullPolicy: IfNotPresent
+        image: pressnavek/chat-appointment-bot-service:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
         env:

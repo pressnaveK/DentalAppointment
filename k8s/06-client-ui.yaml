@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
       - name: client-ui
-        image: chat-appointment/client-ui:latest
-        imagePullPolicy: IfNotPresent
+        image: pressnavek/chat-appointment-client-ui:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 80
         env:
