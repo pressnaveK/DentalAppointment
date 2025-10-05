@@ -25,7 +25,7 @@ def read_root():
 def chat_endpoint(message: dict):
     # TODO: Implement chatbot logic
     return {"response": "Hello! This is a placeholder response from the bot service."}
-    # TODO: Add logic to process user messages and generdsds
+    # TODO: Add logic to process user messages and generdsjkjkjkjkjkjkjkjkj
 
 if __name__ == "__main__":
     import uvicorn
